@@ -60,6 +60,7 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { translations } from "@/lib/translations"
 import { translateText } from "@/lib/translate"
+import { generateSpeech } from "@/lib/tts"
 
 const FONT_SIZES = ["10", "12", "14", "16", "18", "20", "24", "28", "32", "36", "48", "72"]
 
@@ -184,7 +185,7 @@ const handleTranslate = useCallback(async () => {
   setIsTranslating(true);
 
   try {
-    const translatedText = await translateText(textToTranslate, 'en', language.code);
+    const translatedText = await translateText(textToTranslate, 'auto', language.code);
     
     if (selectedText) {
       // Replace only what was selected
@@ -203,27 +204,40 @@ const handleTranslate = useCallback(async () => {
   // and prevent unnecessary function re-creations.
 }, [editor, language.code]);
 
-  const handleReadAloud = useCallback(() => {
-    if (!("speechSynthesis" in window)) {
-      alert("Text-to-speech is not supported in your browser.")
-      return
-    }
+const audioRef = useRef<HTMLAudioElement | null>(null);
 
-    if (isSpeaking) {
-      window.speechSynthesis.cancel()
-      setIsSpeaking(false)
-      return
+const handleReadAloud = useCallback(async () => {
+  // If already speaking, stop it
+  if (isSpeaking) {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
     }
+    setIsSpeaking(false);
+    return;
+  }
 
-    const text = editor?.getText() || ""
-    if (text) {
-      const ut = new SpeechSynthesisUtterance(text)
-      ut.lang = language.code
-      ut.onend = () => setIsSpeaking(false)
-      setIsSpeaking(true)
-      window.speechSynthesis.speak(ut)
+  const text = editor?.getText() || "";
+  if (!text) return;
+
+  setIsSpeaking(true);
+  try {
+    const base64Audio = await generateSpeech(text, language.code);
+    if (base64Audio) {
+      const audio = new Audio(`data:audio/wav;base64,${base64Audio}`);
+      audioRef.current = audio; // Store it
+      
+      audio.onended = () => {
+        setIsSpeaking(false);
+        audioRef.current = null;
+      };
+      
+      await audio.play();
     }
-  }, [editor, isSpeaking, language])
+  } catch (error) {
+    setIsSpeaking(false);
+  }
+}, [editor, isSpeaking, language.code]);
 
   const handlePrint = useCallback(() => {
     const content = editor?.getHTML()
