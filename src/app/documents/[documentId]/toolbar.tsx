@@ -74,7 +74,6 @@ export const Toolbar = ({ initialData }: ToolbarProps) => {
   const [linkUrl, setLinkUrl] = useState("")
   const [searchText, setSearchText] = useState("") 
   const [isTranslating, setIsTranslating] = useState(false);
-  const recognitionRef = useRef<any>(null);
   const router = useRouter();
   const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
   const [targetEmail, setTargetEmail] = useState("");
@@ -88,9 +87,6 @@ export const Toolbar = ({ initialData }: ToolbarProps) => {
 } | null>(null);
 
   
-
-  useEffect(() => { return () => { if (recognitionRef.current) recognitionRef.current.stop() } }, [])
-  
   const update = useMutation(api.documents.update);
   const create = useMutation(api.documents.create);
   const remove = useMutation(api.documents.remove);
@@ -101,20 +97,57 @@ export const Toolbar = ({ initialData }: ToolbarProps) => {
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const createVersion = useMutation(api.documents.createVersion);
   const versions = useQuery(api.documents.getVersions, { documentId: initialData._id }) || [];
-  const indianFonts = [
-    { label: "Hindi (Mangal)", value: "Mangal" },
-    { label: "Hindi (Devanagari)", value: "Noto Sans Devanagari" },
-    { label: "Tamil (Lohit)", value: "Lohit Tamil" },
-    { label: "Bengali (Lohit)", value: "Lohit Bengali" },
-    { label: "Telugu (Gautami)", value: "Gautami" },
-    { label: "Marathi (Sanskrit)", value: "Noto Serif Devanagari" },
-    { label: "Gujarati (Shruti)", value: "Shruti" },
-    { label: "Kannada (Tunga)", value: "Tunga" },
-    { label: "Malayalam (Kartika)", value: "Kartika" },
-    { label: "Punjabi (Raavi)", value: "Raavi" },
-    { label: "English (Arial)", value: "Arial" },
-    { label: "English (Times)", value: "Times New Roman" },
-  ]
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const FONT_FAMILIES = [
+  // --- Standard Web Safe ---
+  { label: "Arial", value: "Arial" },
+  { label: "Times New Roman", value: "Times New Roman" },
+  { label: "Courier New", value: "Courier New" },
+  { label: "Georgia", value: "Georgia" },
+  { label: "Verdana", value: "Verdana" },
+  { label: "Tahoma", value: "Tahoma" },
+  { label: "Trebuchet MS", value: "Trebuchet MS" },
+  { label: "Impact", value: "Impact" },
+
+  // --- Google Fonts: Sans Serif (Modern) ---
+  { label: "Inter", value: "Inter" },
+  { label: "Roboto", value: "Roboto" },
+  { label: "Montserrat", value: "Montserrat" },
+  { label: "Poppins", value: "Poppins" },
+  { label: "Open Sans", value: "Open Sans" },
+  { label: "Lato", value: "Lato" },
+  { label: "Oswald", value: "Oswald" },
+  { label: "Raleway", value: "Raleway" },
+  { label: "Ubuntu", value: "Ubuntu" },
+
+  // --- Google Fonts: Serif (Classic) ---
+  { label: "Playfair Display", value: "Playfair Display" },
+  { label: "Merriweather", value: "Merriweather" },
+  { label: "Lora", value: "Lora" },
+  { label: "Libre Baskerville", value: "Libre Baskerville" },
+  { label: "PT Serif", value: "PT Serif" },
+  { label: "Crimson Text", value: "Crimson Text" },
+
+  // --- Google Fonts: Handwriting/Display ---
+  { label: "Dancing Script", value: "Dancing Script" },
+  { label: "Pacifico", value: "Pacifico" },
+  { label: "Indie Flower", value: "Indie Flower" },
+  { label: "Lobster", value: "Lobster" },
+  { label: "Caveat", value: "Caveat" },
+  { label: "Satisfy", value: "Satisfy" },
+
+  // --- Google Fonts: Monospace ---
+  { label: "Source Code Pro", value: "Source Code Pro" },
+  { label: "Roboto Mono", value: "Roboto Mono" },
+  { label: "Space Mono", value: "Space Mono" },
+  { label: "Inconsolata", value: "Inconsolata" },
+
+  // --- Indian Scripts (Regional) ---
+  { label: "Hindi (Noto Sans)", value: "Noto Sans Devanagari" },
+  { label: "Bengali (Noto Sans)", value: "Noto Sans Bengali" },
+  { label: "Tamil (Noto Sans)", value: "Noto Sans Tamil" },
+  { label: "Telugu (Noto Sans)", value: "Noto Sans Telugu" },
+];
 
   const onSaveVersion = async () => {
   try {
@@ -173,13 +206,13 @@ const onRestoreVersion = async (version: any) => {
   const body = encodeURIComponent(
     `I am sharing a document with you from BharatDocs:\n\n${content}\n\nSent via BharatDocs`
   );
-
+  
   // This link tells Google to open a "Compose" window with your data
   const gmailLink = `https://mail.google.com/mail/?view=cm&fs=1&to=${targetEmail}&su=${subject}&body=${body}`;
 
   // Open in a new tab so the user doesn't lose their current document
   window.open(gmailLink, "_blank");
-
+  
   // Cleanup UI
   setIsEmailModalOpen(false);
   setTargetEmail("");
@@ -283,7 +316,7 @@ const onRestoreVersion = async (version: any) => {
     };
     input.click();
   }, [editor]);
-
+  
   const handleCameraUpload = useCallback(() => {
     const input = document.createElement('input');
     input.type = 'file';
@@ -302,7 +335,7 @@ const onRestoreVersion = async (version: any) => {
     };
     input.click();
   }, [editor]);
-
+  
   const handleInsertChart = (chartType: string) => {
     const labelsStr = window.prompt("Enter labels separated by commas (e.g., Jan,Feb,Mar):", "Jan,Feb,Mar,Apr");
     if (!labelsStr) return;
@@ -347,7 +380,7 @@ const onRestoreVersion = async (version: any) => {
       update({ id: initialData._id, title: newTitle });
     }
   };
-
+  
   const onDelete = async () => {
     const confirmed = window.confirm("Are you sure you want to delete this document?");
     if (!confirmed) return;
@@ -384,22 +417,101 @@ const onRestoreVersion = async (version: any) => {
   if (response.ok) alert("Email sent successfully!");
 };
 
-  const handleVoiceTyping = useCallback(() => {
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
-    if (!SpeechRecognition) { alert("Speech recognition is not supported."); return }
-    if (isListening) { recognitionRef.current?.stop(); setIsListening(false); return; }
-    const recognition = new SpeechRecognition()
-    recognitionRef.current = recognition;
-    recognition.lang = language.code; recognition.continuous = true; recognition.interimResults = true;
-    recognition.onstart = () => setIsListening(true)
-    recognition.onresult = (event: any) => {
-      const transcript = Array.from(event.results).slice(event.resultIndex).map((result: any) => result[0]).map((result) => result.transcript).join("")
-      if (event.results[event.results.length - 1].isFinal && editor) { editor.chain().focus().insertContent(transcript + " ").run() }
+
+
+// 1. Add this ref at the top of your component (with your other refs)
+
+// 1. Ensure these refs are at the top of your component
+const recognitionRef = useRef<any>(null);
+const shouldListenRef = useRef(false);
+const lastInsertedLengthRef = useRef(0); // Tracks how much of the current sentence we already typed
+
+const handleVoiceTyping = useCallback(() => {
+  const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+  
+  if (!SpeechRecognition) {
+    toast.error("Speech recognition not supported.");
+    return;
+  }
+
+  // --- MANUAL STOP ---
+  if (isListening) {
+    shouldListenRef.current = false;
+    setIsListening(false);
+    if (recognitionRef.current) recognitionRef.current.stop();
+    return;
+  }
+
+  // --- START ---
+  shouldListenRef.current = true;
+  const recognition = new SpeechRecognition();
+  recognitionRef.current = recognition;
+
+  recognition.lang = language.code;
+  recognition.continuous = true;
+  recognition.interimResults = true; // THIS IS KEY: It gives words before the sentence is done
+
+  recognition.onstart = () => {
+    setIsListening(true);
+    lastInsertedLengthRef.current = 0; // Reset for new session
+    
+    // --- 1 MINUTE AUTO-RESTART ---
+    setTimeout(() => {
+      if (shouldListenRef.current && recognitionRef.current === recognition) {
+        console.log("60s refresh: Keeping the mic fresh...");
+        recognition.stop(); 
+      }
+    }, 60000);
+  };
+
+  recognition.onresult = (event: any) => {
+    if (!editor) return;
+
+    let currentTranscript = "";
+    // Build the transcript from the current result index
+    for (let i = event.resultIndex; i < event.results.length; ++i) {
+      currentTranscript += event.results[i][0].transcript;
     }
-    recognition.onerror = (event: any) => { console.error(event.error); setIsListening(false) }
-    recognition.onend = () => { setIsListening(false); recognitionRef.current = null; }
-    recognition.start()
-  }, [editor, isListening, language])
+
+    // Calculate only the NEW words spoken since the last 'onresult'
+    const newText = currentTranscript.slice(lastInsertedLengthRef.current);
+
+    if (newText.trim().length > 0) {
+      // Insert the words instantly
+      editor.chain().focus().insertContent(newText).run();
+      
+      // Update our tracker
+      lastInsertedLengthRef.current = currentTranscript.length;
+    }
+
+    // If the browser finishes a sentence, reset the local tracker for the next one
+    if (event.results[event.results.length - 1].isFinal) {
+      lastInsertedLengthRef.current = 0;
+    }
+  };
+
+  recognition.onerror = (event: any) => {
+    if (event.error === 'no-speech') return;
+    if (event.error === 'aborted') return; // Ignore restarts
+    console.error("Speech Error:", event.error);
+    setIsListening(false);
+    shouldListenRef.current = false;
+  };
+
+  recognition.onend = () => {
+    // --- THE RESTART LOOP ---
+    if (shouldListenRef.current) {
+      lastInsertedLengthRef.current = 0;
+      try {
+        recognition.start();
+      } catch (e) {
+        console.log("Restarting...");
+      }
+    }
+  };
+
+  recognition.start();
+}, [editor, isListening, language]);
 
   const handleTranslate = useCallback(async () => {
     if (!editor || isTranslating) return;
@@ -416,17 +528,60 @@ const onRestoreVersion = async (version: any) => {
   }, [editor, language.code, isTranslating]);
 
   const handleReadAloud = useCallback(async () => {
-    if (isSpeaking) { if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; } setIsSpeaking(false); return; }
-    const text = editor?.getText() || ""; if (!text) return;
-    setIsSpeaking(true);
-    try {
-      const base64Audio = await generateSpeech(text, language.code);
-      if (base64Audio) {
-        const audio = new Audio(`data:audio/wav;base64,${base64Audio}`); audioRef.current = audio;
-        audio.onended = () => { setIsSpeaking(false); audioRef.current = null; }; await audio.play();
-      }
-    } catch (error) { setIsSpeaking(false); }
-  }, [editor, isSpeaking, language.code]);
+  // 1. STOP LOGIC
+  if (isSpeaking) {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+      audioRef.current = null;
+    }
+    setIsSpeaking(false);
+    return;
+  }
+
+  // 2. START LOGIC
+  const text = editor?.getText() || "";
+  if (!text.trim()) return;
+
+  setIsSpeaking(true);
+  const loadingToast = toast.loading("Preparing BharatDocs Voice...");
+
+  try {
+    const base64Audio = await generateSpeech(text, language.code);
+    
+    if (base64Audio) {
+      toast.dismiss(loadingToast);
+      
+      const audio = new Audio(`data:audio/wav;base64,${base64Audio}`);
+      audioRef.current = audio;
+
+      audio.onended = () => {
+        setIsSpeaking(false);
+        audioRef.current = null;
+      };
+
+      // THE FIX: Short 500ms delay to prevent clipping the first words
+      setTimeout(async () => {
+        try {
+          if (audioRef.current === audio) { // Ensure we haven't stopped it already
+            await audio.play();
+          }
+        } catch (playError) {
+          console.error("Playback failed:", playError);
+          setIsSpeaking(false);
+        }
+      }, 500); 
+
+    } else {
+      setIsSpeaking(false);
+      toast.dismiss(loadingToast);
+    }
+  } catch (error) {
+    console.error("TTS Error:", error);
+    toast.dismiss(loadingToast);
+    setIsSpeaking(false);
+  }
+}, [editor, isSpeaking, language.code]);
 
   const setLink = useCallback(() => {
     if (!linkUrl) { editor?.chain().focus().unsetLink().run(); return }
@@ -728,7 +883,13 @@ const onRestoreVersion = async (version: any) => {
 
                <TopMenu label={getMenuName("Tools")}>
                  <TopMenuItem icon={Languages} label="Translate Document" onClick={handleTranslate} />
-                 <TopMenuItem icon={Mic} label="Voice Typing" onClick={handleVoiceTyping} />
+                 <ToolbarButton 
+                    icon={Mic} 
+                    onClick={handleVoiceTyping} 
+                    active={isListening} 
+                    className={cn(isListening && "animate-pulse text-red-500")}
+                    tooltip={isListening ? "Stop Voice Typing" : "Start Voice Typing"} 
+                  />
                  <TopMenuItem icon={Volume2Icon} label="Read Aloud" onClick={handleReadAloud} />
                </TopMenu>
 
@@ -805,10 +966,19 @@ const onRestoreVersion = async (version: any) => {
             <select 
               title="Font Family"
               onChange={(e) => editor.chain().focus().setFontFamily(e.target.value).run()} 
-              className="bg-transparent hover:bg-slate-200 dark:hover:bg-neutral-700 text-[13px] px-2 py-1.5 rounded-md text-foreground focus:outline-none cursor-pointer" 
-              value={currentFontFamily}
+              className="bg-transparent hover:bg-slate-200 dark:hover:bg-neutral-700 text-[13px] px-2 py-1.5 rounded-md text-foreground focus:outline-none cursor-pointer font-medium border-none outline-none min-w-[140px]" 
+              value={editor.getAttributes("textStyle").fontFamily?.replace(/['"]+/g, '') || "Arial"}
             >
-              {indianFonts.map((font) => (<option key={font.value} value={font.value} className="bg-background text-foreground">{font.label}</option>))}
+              {FONT_FAMILIES.map((font) => (
+                <option 
+                  key={font.value} 
+                  value={font.value} 
+                  className="bg-background text-foreground py-1"
+                  style={{ fontFamily: font.value }} // Real-time preview in the dropdown
+                >
+                  {font.label}
+                </option>
+              ))}
             </select>
 
             <Divider />

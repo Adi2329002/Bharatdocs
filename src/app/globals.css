@@ -2,7 +2,15 @@
 @tailwind components;
 @tailwind utilities;
 
+/* 1. Import all the font data from Google */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Roboto:wght@400;700&family=Montserrat:wght@400;700&family=Poppins:wght@400;700&family=Open+Sans:wght@400;700&family=Lato:wght@400;700&family=Oswald:wght@400;700&family=Raleway:wght@400;700&family=Ubuntu:wght@400;700&family=Playfair+Display:wght@400;700&family=Merriweather:wght@400;700&family=Lora:wght@400;700&family=Libre+Baskerville:wght@400;700&family=PT+Serif:wght@400;700&family=Crimson+Text:wght@400;700&family=Dancing+Script:wght@400;700&family=Pacifico&family=Indie+Flower&family=Lobster&family=Caveat:wght@400;700&family=Satisfy&family=Source+Code+Pro:wght@400;700&family=Roboto+Mono:wght@400;700&family=Space+Mono:wght@400;700&family=Inconsolata:wght@400;700&family=Noto+Sans+Devanagari:wght@400;700&family=Noto+Sans+Bengali:wght@400;700&family=Noto+Sans+Tamil:wght@400;700&family=Noto+Sans+Telugu:wght@400;700&display=swap');
 
+/* 2. Ensure Tiptap allows these fonts to render */
+.ProseMirror {
+  font-variant-ligatures: none;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
 body {
   font-family: Arial, Helvetica, sans-serif;
 }
