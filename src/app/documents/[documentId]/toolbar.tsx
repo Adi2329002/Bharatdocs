@@ -23,6 +23,7 @@ import {
   MessageSquarePlusIcon, ChevronRightIcon, SunIcon, MoonIcon, ChevronDown, 
   TablePropertiesIcon, ShieldAlertIcon
 } from "lucide-react"
+import { DocumentShare } from "@/components/ui/document-share";
 import { cn } from "@/lib/utils"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
@@ -902,6 +903,7 @@ const handleVoiceTyping = useCallback(() => {
           <div className="flex-grow" /> 
 
           <div className="flex items-center gap-3">
+            <DocumentShare documentId={initialData._id} />
             <Tooltip>
               <TooltipTrigger asChild>
                  <Button variant="ghost" onClick={() => setTheme(theme === "dark" ? "light" : "dark")} className="h-8 px-3 rounded-full text-muted-foreground hover:bg-muted hover:text-foreground transition-all flex items-center gap-2">

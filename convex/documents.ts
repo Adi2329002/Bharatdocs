@@ -4,23 +4,18 @@ import { mutation, query } from "./_generated/server";
 // 1. Function to CREATE a new blank document
 // convex/documents.ts
 export const create = mutation({
-  args: { 
-    title: v.string(), 
-    initialContent: v.optional(v.string()) // Add this
-  },
+  args: { title: v.string(), initialContent: v.optional(v.string()) },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new Error("Not authenticated");
-    }
-    // ... auth check ...
-    const documentId = await ctx.db.insert("documents", {
+    if (!identity) throw new Error("Not authenticated");
+
+    return await ctx.db.insert("documents", {
       title: args.title,
       ownerId: identity.subject,
-      // NEW: Use the provided template content, OR default to a safe blank TipTap document
+      ownerEmail: identity.email!, // Store email from Clerk identity
       initialContent: args.initialContent || '{"type":"doc","content":[{"type":"paragraph"}]}',
+      collaboratorEmails: [],
     });
-    return documentId;
   },
 });
 
@@ -28,14 +23,25 @@ export const create = mutation({
 export const get = query({
   handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      return [];
-    }
+    if (!identity) return { owned: [], shared: [] };
 
-    return await ctx.db
+    const userEmail = identity.email?.toLowerCase();
+
+    // 1. Get ALL documents relevant to this user
+    // We query by owner first as it's the primary index
+    const allDocs = await ctx.db
       .query("documents")
-      .filter((q) => q.eq(q.field("ownerId"), identity.subject))
       .collect();
+
+    // 2. Separate them using JavaScript logic
+    const owned = allDocs.filter(doc => doc.ownerId === identity.subject);
+    
+    const shared = allDocs.filter(doc => 
+      doc.ownerId !== identity.subject && 
+      doc.collaboratorEmails.map(e => e.toLowerCase()).includes(userEmail ?? "")
+    );
+
+    return { owned, shared };
   },
 });
 
@@ -44,24 +50,19 @@ export const getById = query({
   args: { documentId: v.id("documents") },
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
-
     const document = await ctx.db.get(args.documentId);
 
-    if (!document) {
-      return null;
-    }
-    if (!identity) {
-      throw new Error("Unauthorized: You must be logged in to view this document");
-    }
-    // --- 👇 ADD THESE LOGS TO DEBUG 👇 ---
-    console.log("WHO AM I?", identity?.subject);
-    console.log("WHO OWNS THIS DOC?", document.ownerId);
-    // -------------------------------------
+    if (!document) return null;
+    if (!identity) throw new Error("Not authenticated");
 
-    // Security: Only allow the owner (or public) to see it
-    // if (document.ownerId !== identity?.subject) {
-    //   throw new Error("Unauthorized");
-    // }
+    const userEmail = identity.email?.toLowerCase();
+    const isOwner = document.ownerId === identity.subject;
+    const isCollaborator = document.collaboratorEmails?.includes(userEmail || "");
+
+    // Logic: If they aren't the owner AND aren't on the email list, block them
+    if (!isOwner && !isCollaborator) {
+      throw new Error("Unauthorized: You do not have access to this document");
+    }
 
     return document;
   },
@@ -172,5 +173,29 @@ export const getVersions = query({
       .withIndex("by_document", (q) => q.eq("documentId", args.documentId))
       .order("desc") // Newest first
       .collect();
+  },
+});
+
+// Add this mutation to allow inviting others
+export const addCollaborator = mutation({
+  args: { documentId: v.id("documents"), email: v.string() },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) throw new Error("Unauthorized");
+
+    const document = await ctx.db.get(args.documentId);
+    if (!document || document.ownerId !== identity.subject) {
+      throw new Error("Only owners can invite collaborators");
+    }
+
+    const currentEmails = document.collaboratorEmails || [];
+    const newEmail = args.email.toLowerCase().trim();
+
+    if (!currentEmails.includes(newEmail)) {
+      await ctx.db.patch(args.documentId, {
+        collaboratorEmails: [...currentEmails, newEmail],
+      });
+    }
+    return { success: true };
   },
 });
